@@ -9,6 +9,7 @@ import pytest
 import pandas as pd
 from etl_pipeline import transform, validate
 
+
 def test_transform_filters_cancelled():
     """Test that cancelled orders are excluded."""
     # Create sample data with one cancelled order
@@ -38,7 +39,10 @@ def test_transform_filters_cancelled():
         "order_items": order_items
     }
 
-    result = transform(data_dict)
+    # Pass minimal config for tests (Tier 3 compatibility)
+    config = {"pipeline_name": "test"}
+
+    result = transform(data_dict, config)
     
     # Should only have the completed order
     assert len(result) == 1
@@ -47,7 +51,11 @@ def test_transform_filters_cancelled():
 
 def test_transform_filters_suspicious_quantity():
     """Test that orders with quantity > 100 are excluded."""
-    orders = pd.DataFrame({'order_id': [1, 2], 'customer_id': [1, 1], 'status': ['completed', 'completed']})
+    orders = pd.DataFrame({
+        'order_id': [1, 2], 
+        'customer_id': [1, 1], 
+        'status': ['completed', 'completed']
+    })
     order_items = pd.DataFrame({
         'order_id': [1, 2],
         'product_id': [1, 1],
@@ -63,9 +71,11 @@ def test_transform_filters_suspicious_quantity():
         "order_items": order_items
     }
 
-    result = transform(data_dict)
+    config = {"pipeline_name": "test"}
+
+    result = transform(data_dict, config)
     
-    # Should exclude the quantity 150
+    # Should exclude the quantity 150 → only 1 order remains
     assert len(result) == 1
     assert result['total_orders'].iloc[0] == 1
 
@@ -78,8 +88,30 @@ def test_validate_catches_nulls():
         'total_orders': [5, 3],
         'total_revenue': [100.0, 200.0],
         'avg_order_value': [20.0, 66.67],
-        'top_category': ['Electronics', 'Clothing']
+        'top_category': ['Electronics', 'Clothing'],
+        'is_outlier': [False, False],
+        'z_score': [0.0, 0.0]
     })
 
     with pytest.raises(ValueError):
         validate(df)
+
+
+# Optional: Test for empty DataFrame handling (good for Tier 3)
+def test_transform_handles_empty_orders():
+    """Test transform handles case with no new orders (incremental)."""
+    data_dict = {
+        "customers": pd.DataFrame(),
+        "products": pd.DataFrame(),
+        "orders": pd.DataFrame(),
+        "order_items": pd.DataFrame()
+    }
+    config = {"pipeline_name": "test"}
+    
+    result = transform(data_dict, config)
+    
+    assert len(result) == 0
+    assert list(result.columns) == ['customer_id', 'customer_name', 'total_orders', 
+                                   'total_revenue', 'avg_order_value', 'top_category', 
+                                   'is_outlier', 'z_score']
+    
