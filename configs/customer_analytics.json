@@ -1,0 +1,5 @@
+{
+  "pipeline_name": "customer_analytics",
+  "output_table": "customer_analytics",
+  "csv_path": "output/customer_analytics.csv"
+}
